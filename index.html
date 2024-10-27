@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Disappearing Text</title>
+    <!-- Inclure la bibliothèque p5.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: black; /* Fond noir */
+        }
+        canvas {
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        let fullText = "Sunshine evokes breaths of guilt. Does it always feel harmonizing under the raging fire? " +
+        "Thinking about everything is dazing; can I fade into the blue. Absolving from visceral walls – I come to. " +
+        "Standing before unremarkable marble. Past the panes, the world drums. Leaves dance a little bit, vehicles roar and zoom, birds sing, " +
+        "classical Greek music sprinkles over the fence. The sky is alive and calm this afternoon. " +
+        "I feel a sense of livability. Recounting the long and forgotten days since stepping out into the world, I tremble. " +
+        "Cold, mundane, silent, loud – home. Dichotomy. Sunshine evokes breaths of guilt. Does it always feel harmonizing under the raging fire? " +
+        "Anew. The deep warmth revitalizes, bumps vacation above my skin, I don’t waver. Why long for the mourning moon when you can have the gifting sun. " +
+        "The crisp wind. Melodies of life swimming around your atmosphere galvanizing you. Take your guilt and swallow it – I drown in it. " +
+        "The sun wants to wash it afar, but I cling like a baby to its mother. No clouds walk the sky, regardless; they hiss in the grass. " +
+        "‘We do it all for you.’ ‘You need to leave the house.’ They heartfully advised, but I remained to hide. " +
+        "Attempted to flesh me away from my capsule and escape from this fowl period. The question ruling the kingdom - how could they understand? " +
+        "Without being carved down to decaying bone and pungent blood. They can’t understand. But I ignorantly forgot, they too endured misfortunes. " +
+        "Witnessing the ill and grey in you from their eyes, and all they scream to give, is help. SEASONS How convoluted it is during the peak of the hour. " +
+        "Hesitation was not a consideration. Through my mind, nothingness was a friend - consumingly addictive. Devouring me in its arms, dictating how this life will forever unfold. " +
+        "It unfolded. Continuing to unfold until that afternoon in my garden where my soul reawakened, and the past began to relinquish. " +
+        "The nights spent groaning at the fuckery of spoiled intestines, begging the curtains to be drawn.";
+
+        let letters = [];
+
+        function setup() {
+            createCanvas(windowWidth, windowHeight); // Adapter à la taille de l'écran
+            background(0); // Fond noir
+            textSize(calculateFontSize()); // Calcule la taille de police optimale pour remplir l'écran
+            fill(173, 216, 230); // Texte bleu clair
+            textAlign(LEFT, TOP);
+
+            // Diviser le texte et le placer sur l'écran
+            let x = 10;
+            let y = 10;
+            for (let i = 0; i < fullText.length; i++) {
+                let c = fullText.charAt(i);
+                if (c === ' ' && x > width - 100) {
+                    x = 10;
+                    y += textAscent() + textDescent(); // Ajuster à la nouvelle ligne
+                } else if (c === ' ') {
+                    x += textWidth(c);
+                } else {
+                    letters.push(new Letter(c, x, y));
+                    x += textWidth(c);
+                    if (x > width - 20) {
+                        x = 10;
+                        y += textAscent() + textDescent(); // Passer à la ligne suivante
+                    }
+                }
+            }
+        }
+
+        function draw() {
+            background(0); // Fond noir
+            for (let i = letters.length - 1; i >= 0; i--) {
+                let l = letters[i];
+                l.update();
+                l.display();
+
+                // Si la lettre est hors de l'écran, on la retire de la liste
+                if (l.offscreen()) {
+                    letters.splice(i, 1);
+                }
+            }
+        }
+
+        function touchMoved() {
+            for (let l of letters) {
+                for (let touch of touches) {
+                    if (l.contains(touch.x, touch.y)) {
+                        l.flyAway();
+                    }
+                }
+            }
+            return false; // Empêche le défilement sur mobile
+        }
+
+        // Calculer la taille de police optimale pour que le texte remplisse l'écran
+        function calculateFontSize() {
+            let estimatedFontSize = 12;
+            textSize(estimatedFontSize);
+            let totalHeight = 0;
+            let screenWidth = width - 20;
+            let lineWidth = 0;
+
+            for (let i = 0; i < fullText.length; i++) {
+                let charWidth = textWidth(fullText.charAt(i));
+                if (lineWidth + charWidth > screenWidth) {
+                    totalHeight += textAscent() + textDescent();
+                    lineWidth = charWidth;
+                } else {
+                    lineWidth += charWidth;
+                }
+            }
+
+            totalHeight += textAscent() + textDescent(); // Dernière ligne
+
+            // Ajuster la taille de police jusqu'à ce que le texte prenne la majorité de la hauteur de l'écran
+            while (totalHeight < height * 0.95) {
+                estimatedFontSize += 1;
+                textSize(estimatedFontSize);
+                totalHeight = 0;
+                lineWidth = 0;
+
+                for (let i = 0; i < fullText.length; i++) {
+                    let charWidth = textWidth(fullText.charAt(i));
+                    if (lineWidth + charWidth > screenWidth) {
+                        totalHeight += textAscent() + textDescent();
+                        lineWidth = charWidth;
+                    } else {
+                        lineWidth += charWidth;
+                    }
+                }
+
+                totalHeight += textAscent() + textDescent(); // Dernière ligne
+            }
+
+            return estimatedFontSize;
+        }
+
+        // Classe représentant chaque lettre
+        class Letter {
+            constructor(c, x, y) {
+                this.c = c;
+                this.x = x;
+                this.y = y;
+                this.speedX = 0;
+                this.speedY = 0;
+                this.flying = false;
+            }
+
+            update() {
+                if (this.flying) {
+                    this.x += this.speedX;
+                    this.y += this.speedY;
+                }
+            }
+
+            display() {
+                if (this.flying) {
+                    fill(255, 20, 147); // Rose vif pour les lettres qui s'en vont
+                } else {
+                    fill(173, 216, 230); // Bleu clair pour les lettres normales
+                }
+                text(this.c, this.x, this.y);
+            }
+
+            flyAway() {
+                if (!this.flying) {
+                    this.speedX = random(-5, 5);
+                    this.speedY = random(-5, 5);
+                    this.flying = true;
+                }
+            }
+
+            contains(mx, my) {
+                let tw = textWidth(this.c);
+                return mx > this.x && mx < this.x + tw && my > this.y - textAscent() / 2 && my < this.y + textAscent() / 2;
+            }
+
+            offscreen() {
+                return this.x < 0 || this.x > width || this.y < 0 || this.y > height;
+            }
+        }
+
+        function windowResized() {
+            resizeCanvas(windowWidth, windowHeight); // Réajuster le canevas si la fenêtre est redimensionnée
+        }
+    </script>
+</body>
+</html>
